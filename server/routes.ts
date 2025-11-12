@@ -643,6 +643,71 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // AI Content Generation Routes
   app.use("/api/ai", aiRouter);
 
+  // Analytics endpoint
+  app.get("/api/analytics", requireAuth, async (req, res) => {
+    try {
+      const user = req.user as User;
+      const posts = await storage.getUserPosts(user.id, {});
+
+      // Calculate total posts by status
+      const totalPosts = posts.length;
+      const publishedPosts = posts.filter(p => p.status === 'published').length;
+      const draftPosts = posts.filter(p => p.status === 'draft').length;
+      const scheduledPosts = posts.filter(p => p.status === 'scheduled').length;
+
+      // Calculate platform distribution
+      const platformCounts: Record<string, number> = {};
+      posts.forEach(post => {
+        post.platforms.forEach(platform => {
+          platformCounts[platform] = (platformCounts[platform] || 0) + 1;
+        });
+      });
+
+      // Calculate posting frequency over last 30 days
+      const thirtyDaysAgo = new Date();
+      thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+      
+      const recentPosts = posts.filter(p => 
+        p.createdAt && new Date(p.createdAt) >= thirtyDaysAgo
+      );
+
+      // Group posts by date for timeline
+      const postsByDate: Record<string, number> = {};
+      recentPosts.forEach(post => {
+        if (post.createdAt) {
+          const date = new Date(post.createdAt).toISOString().split('T')[0];
+          postsByDate[date] = (postsByDate[date] || 0) + 1;
+        }
+      });
+
+      // Calculate AI usage
+      const aiGeneratedPosts = posts.filter(p => p.aiGenerated).length;
+
+      // Calculate completion rate (published / total)
+      const completionRate = totalPosts > 0 
+        ? Math.round((publishedPosts / totalPosts) * 100)
+        : 0;
+
+      res.json({
+        totalPosts,
+        publishedPosts,
+        draftPosts,
+        scheduledPosts,
+        platformDistribution: platformCounts,
+        recentActivity: postsByDate,
+        aiGeneratedPosts,
+        completionRate,
+        postsLast30Days: recentPosts.length,
+      });
+    } catch (error: any) {
+      console.error("Error fetching analytics:", error);
+      res.status(500).json({
+        error: "Failed to fetch analytics",
+        message: error.message || "An error occurred while fetching analytics"
+      });
+    }
+  });
+
   // Health check endpoint
   app.get("/api/health", (req, res) => {
     res.json({ status: "ok", message: "SFS Social Powerhouse API" });
