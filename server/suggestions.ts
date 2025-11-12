@@ -92,9 +92,12 @@ function analyzeTiming(platforms: string[], scheduledAt?: Date | null): Suggesti
       return !bestTimes.some(t =>
         t.day === day && t.times.some(bestTime => {
           // Check if within 2 hours of best time
-          const [bestHour] = bestTime.match(/\d+/) || [];
-          const [schedHour] = time.match(/\d+/) || [];
-          return Math.abs(parseInt(bestHour) - parseInt(schedHour)) <= 2;
+          const bestHourMatch = bestTime.match(/\d+/);
+          const schedHourMatch = time.match(/\d+/);
+          if (!bestHourMatch || !schedHourMatch) return false;
+          const bestHour = parseInt(bestHourMatch[0]);
+          const schedHour = parseInt(schedHourMatch[0]);
+          return Math.abs(bestHour - schedHour) <= 2;
         })
       );
     });
@@ -170,7 +173,9 @@ function analyzeContent(content: string, platforms: string[]): Suggestion[] {
   const suggestions: Suggestion[] = [];
   const wordCount = content.split(/\s+/).length;
   const charCount = content.length;
-  const hasEmoji = /[\u{1F300}-\u{1F9FF}]/u.test(content);
+  // Simple emoji detection - check for common emoji characters
+  const emojiRegex = /[\u2600-\u27BF]|[\uD800-\uDBFF][\uDC00-\uDFFF]/g;
+  const hasEmoji = emojiRegex.test(content);
   const hasQuestion = content.includes('?');
   const hasCallToAction = /\b(click|tap|swipe|comment|share|follow|learn more|shop now|sign up|join|download)\b/i.test(content);
 

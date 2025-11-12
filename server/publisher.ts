@@ -274,7 +274,7 @@ export async function processScheduledPosts(): Promise<void> {
 
   try {
     // Get all scheduled posts
-    const allUsers = Array.from((storage as any).users.keys());
+    const allUsers = Array.from((storage as any).users.keys()) as string[];
 
     for (const userId of allUsers) {
       const posts = await storage.getUserPosts(userId, { status: 'scheduled' });

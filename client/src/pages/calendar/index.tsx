@@ -21,7 +21,8 @@ import {
   Clock,
   Sparkles,
   Loader2,
-  Send
+  Send,
+  GripVertical,
 } from 'lucide-react';
 import {
   Dialog,
@@ -35,6 +36,17 @@ import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Input } from '@/components/ui/input';
 import { useToast } from '@/hooks/use-toast';
+import {
+  DndContext,
+  DragEndEvent,
+  DragOverlay,
+  DragStartEvent,
+  PointerSensor,
+  useSensor,
+  useSensors,
+  closestCenter,
+} from '@dnd-kit/core';
+import { CSS } from '@dnd-kit/utilities';
 
 type ViewMode = 'month' | 'week' | 'day';
 type PostStatus = 'draft' | 'scheduled' | 'published' | 'failed';
@@ -74,7 +86,17 @@ export default function Calendar() {
   const [posts, setPosts] = useState<Post[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [activePost, setActivePost] = useState<Post | null>(null);
   const { toast } = useToast();
+
+  // Drag and drop sensors
+  const sensors = useSensors(
+    useSensor(PointerSensor, {
+      activationConstraint: {
+        distance: 8, // 8px movement required before drag starts
+      },
+    })
+  );
 
   // Fetch posts from API
   useEffect(() => {
@@ -143,6 +165,35 @@ export default function Calendar() {
     });
   };
 
+  // Draggable post component
+  const DraggablePost = ({ post }: { post: Post }) => {
+    const [isDragging, setIsDragging] = useState(false);
+
+    return (
+      <div
+        draggable
+        onDragStart={(e) => {
+          e.dataTransfer.effectAllowed = 'move';
+          e.dataTransfer.setData('postId', post.id);
+          setIsDragging(true);
+          handleDragStart({ active: { id: post.id } } as any);
+        }}
+        onDragEnd={() => setIsDragging(false)}
+        className={`text-xs p-1 rounded bg-primary/10 border border-primary/20 hover:bg-primary/20 transition-colors cursor-move group ${
+          isDragging ? 'opacity-50' : ''
+        }`}
+      >
+        <div className="flex items-center gap-1 mb-0.5">
+          <GripVertical className="w-3 h-3 opacity-0 group-hover:opacity-100 transition-opacity" />
+          {post.platforms.map((p) => (
+            <span key={p} className="text-xs">{PLATFORM_ICONS[p]}</span>
+          ))}
+        </div>
+        <div className="truncate text-foreground/80">{post.content}</div>
+      </div>
+    );
+  };
+
   const renderCalendarDays = () => {
     const daysInMonth = getDaysInMonth(currentMonth, currentYear);
     const firstDay = getFirstDayOfMonth(currentMonth, currentYear);
@@ -163,9 +214,28 @@ export default function Calendar() {
         currentMonth === new Date().getMonth() &&
         currentYear === new Date().getFullYear();
 
+      const dayId = `day-${currentYear}-${String(currentMonth + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+
       days.push(
         <div
           key={day}
+          data-day-id={dayId}
+          onDragOver={(e) => {
+            e.preventDefault();
+            e.currentTarget.classList.add('ring-2', 'ring-primary/50');
+          }}
+          onDragLeave={(e) => {
+            e.currentTarget.classList.remove('ring-2', 'ring-primary/50');
+          }}
+          onDrop={(e) => {
+            e.preventDefault();
+            e.currentTarget.classList.remove('ring-2', 'ring-primary/50');
+            const postId = e.dataTransfer.getData('postId');
+            handleDragEnd({
+              active: { id: postId },
+              over: { id: dayId },
+            } as any);
+          }}
           className={`min-h-24 border border-border/30 rounded-lg p-2 transition-all hover:border-primary/40 cursor-pointer glass-card ${
             isToday ? 'ring-2 ring-primary' : ''
           }`}
@@ -175,17 +245,7 @@ export default function Calendar() {
           </div>
           <div className="space-y-1">
             {dayPosts.slice(0, 2).map((post) => (
-              <div
-                key={post.id}
-                className="text-xs p-1 rounded bg-primary/10 border border-primary/20 hover:bg-primary/20 transition-colors"
-              >
-                <div className="flex items-center gap-1 mb-0.5">
-                  {post.platforms.map((p) => (
-                    <span key={p} className="text-xs">{PLATFORM_ICONS[p]}</span>
-                  ))}
-                </div>
-                <div className="truncate text-foreground/80">{post.content}</div>
-              </div>
+              <DraggablePost key={post.id} post={post} />
             ))}
             {dayPosts.length > 2 && (
               <div className="text-xs text-primary font-semibold">
@@ -344,6 +404,81 @@ export default function Calendar() {
     }
   };
 
+  // Drag and drop handlers
+  const handleDragStart = (event: DragStartEvent) => {
+    const postId = event.active.id as string;
+    const post = posts.find((p) => p.id === postId);
+    if (post) {
+      setActivePost(post);
+    }
+  };
+
+  const handleDragEnd = async (event: DragEndEvent) => {
+    const { active, over } = event;
+    setActivePost(null);
+
+    if (!over) return;
+
+    const postId = active.id as string;
+    const targetDate = over.id as string;
+
+    // Parse the target date (format: "day-YYYY-MM-DD")
+    if (!targetDate.startsWith('day-')) return;
+
+    const dateStr = targetDate.replace('day-', '');
+    const post = posts.find((p) => p.id === postId);
+
+    if (!post) return;
+
+    // Create new scheduled date keeping the original time
+    const oldDate = new Date(post.scheduledAt);
+    const [year, month, day] = dateStr.split('-').map(Number);
+    const newScheduledAt = new Date(year, month - 1, day, oldDate.getHours(), oldDate.getMinutes());
+
+    // Check if date actually changed
+    if (newScheduledAt.getTime() === oldDate.getTime()) return;
+
+    try {
+      // Optimistically update UI
+      setPosts(posts.map(p =>
+        p.id === postId ? { ...p, scheduledAt: newScheduledAt } : p
+      ));
+
+      // Update on server
+      const response = await fetch(`/api/posts/${postId}`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        credentials: 'include',
+        body: JSON.stringify({
+          scheduledAt: newScheduledAt.toISOString(),
+        }),
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to reschedule post');
+      }
+
+      toast({
+        title: 'Post Rescheduled',
+        description: `Moved to ${newScheduledAt.toLocaleDateString('default', {
+          month: 'short',
+          day: 'numeric',
+          year: 'numeric',
+        })}`,
+      });
+    } catch (error: any) {
+      // Revert on error
+      setPosts(posts);
+      toast({
+        title: 'Error',
+        description: error.message || 'Failed to reschedule post',
+        variant: 'destructive',
+      });
+    }
+  };
+
   return (
     <DashboardLayout>
       <div className="space-y-6">
@@ -355,7 +490,7 @@ export default function Calendar() {
               Content Calendar
             </h1>
             <p className="text-muted-foreground">
-              Plan and schedule your social media posts
+              Plan and schedule your social media posts. Drag posts to reschedule.
             </p>
           </div>
 
@@ -592,6 +727,22 @@ export default function Calendar() {
           </div>
         </Card>
           </>
+        )}
+
+        {/* Drag Overlay */}
+        {activePost && (
+          <div className="fixed pointer-events-none z-50 opacity-80">
+            <div className="p-3 rounded-lg bg-primary/20 border-2 border-primary shadow-lg backdrop-blur-sm">
+              <div className="flex items-center gap-2 mb-2">
+                {activePost.platforms.map((p) => (
+                  <span key={p} className="text-sm">{PLATFORM_ICONS[p]}</span>
+                ))}
+              </div>
+              <div className="text-sm font-medium text-foreground max-w-xs truncate">
+                {activePost.content}
+              </div>
+            </div>
+          </div>
         )}
       </div>
     </DashboardLayout>
