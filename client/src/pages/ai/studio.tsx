@@ -8,8 +8,16 @@ import { Textarea } from '@/components/ui/textarea';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Sparkles, Copy, Download, Share2, Wand2 } from 'lucide-react';
+import { Sparkles, Copy, Download, Share2, Wand2, CalendarPlus, Loader2 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog';
+import { Button } from '@/components/ui/button';
 
 export default function AIStudio() {
   const [prompt, setPrompt] = useState('');
@@ -17,6 +25,10 @@ export default function AIStudio() {
   const [selectedPlatforms, setSelectedPlatforms] = useState<string[]>(['facebook']);
   const [generatedContent, setGeneratedContent] = useState('');
   const [isGenerating, setIsGenerating] = useState(false);
+  const [isScheduleOpen, setIsScheduleOpen] = useState(false);
+  const [isSaving, setIsSaving] = useState(false);
+  const [scheduleDate, setScheduleDate] = useState('');
+  const [scheduleTime, setScheduleTime] = useState('');
   const { toast } = useToast();
 
   const handlePlatformToggle = (platformId: string) => {
@@ -105,6 +117,70 @@ export default function AIStudio() {
       title: 'Copied!',
       description: 'Content copied to clipboard',
     });
+  };
+
+  const handleSaveToCalendar = async () => {
+    if (!scheduleDate || !scheduleTime) {
+      toast({
+        title: 'Missing schedule info',
+        description: 'Please select a date and time',
+        variant: 'destructive',
+      });
+      return;
+    }
+
+    if (selectedPlatforms.length === 0) {
+      toast({
+        title: 'No platforms selected',
+        description: 'Please select at least one platform',
+        variant: 'destructive',
+      });
+      return;
+    }
+
+    try {
+      setIsSaving(true);
+
+      const scheduledAt = new Date(`${scheduleDate}T${scheduleTime}`);
+
+      const response = await fetch('/api/posts', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        credentials: 'include',
+        body: JSON.stringify({
+          content: generatedContent,
+          platforms: selectedPlatforms,
+          scheduledAt: scheduledAt.toISOString(),
+          status: 'scheduled',
+          aiGenerated: true,
+          tone: selectedTone,
+        }),
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.message || 'Failed to save to calendar');
+      }
+
+      toast({
+        title: 'Saved to Calendar!',
+        description: 'Your AI-generated post has been scheduled',
+      });
+
+      setIsScheduleOpen(false);
+      setScheduleDate('');
+      setScheduleTime('');
+    } catch (error: any) {
+      toast({
+        title: 'Failed to save',
+        description: error.message || 'Could not save post to calendar',
+        variant: 'destructive',
+      });
+    } finally {
+      setIsSaving(false);
+    }
   };
 
   return (
@@ -204,6 +280,13 @@ export default function AIStudio() {
                 {generatedContent && (
                   <div className="flex gap-2">
                     <button
+                      onClick={() => setIsScheduleOpen(true)}
+                      className="p-2 rounded-lg bg-primary/20 hover:bg-primary/30 text-primary transition-colors"
+                      title="Save to Calendar"
+                    >
+                      <CalendarPlus className="w-4 h-4" />
+                    </button>
+                    <button
                       onClick={handleCopy}
                       className="p-2 rounded-lg bg-sfs-gold/20 hover:bg-sfs-gold/30 text-sfs-gold transition-colors"
                       title="Copy to clipboard"
@@ -286,6 +369,86 @@ export default function AIStudio() {
             )}
           </div>
         </div>
+
+        {/* Schedule Dialog */}
+        <Dialog open={isScheduleOpen} onOpenChange={setIsScheduleOpen}>
+          <DialogContent className="glass-card">
+            <DialogHeader>
+              <DialogTitle>Schedule Post to Calendar</DialogTitle>
+              <DialogDescription>
+                Choose when to publish this AI-generated content
+              </DialogDescription>
+            </DialogHeader>
+
+            <div className="space-y-4 mt-4">
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <Label htmlFor="schedule-date">Date</Label>
+                  <Input
+                    type="date"
+                    id="schedule-date"
+                    value={scheduleDate}
+                    onChange={(e) => setScheduleDate(e.target.value)}
+                    className="mt-2"
+                    required
+                  />
+                </div>
+                <div>
+                  <Label htmlFor="schedule-time">Time</Label>
+                  <Input
+                    type="time"
+                    id="schedule-time"
+                    value={scheduleTime}
+                    onChange={(e) => setScheduleTime(e.target.value)}
+                    className="mt-2"
+                    required
+                  />
+                </div>
+              </div>
+
+              <div>
+                <Label>Platforms (selected in AI Studio)</Label>
+                <div className="mt-2 flex flex-wrap gap-2">
+                  {selectedPlatforms.map((platform) => (
+                    <div
+                      key={platform}
+                      className="px-3 py-1 rounded-full bg-primary/20 text-primary text-sm border border-primary/30"
+                    >
+                      {platform}
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              <div className="pt-4 flex gap-2">
+                <Button
+                  onClick={handleSaveToCalendar}
+                  disabled={isSaving}
+                  className="flex-1"
+                >
+                  {isSaving ? (
+                    <>
+                      <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                      Saving...
+                    </>
+                  ) : (
+                    <>
+                      <CalendarPlus className="w-4 h-4 mr-2" />
+                      Save to Calendar
+                    </>
+                  )}
+                </Button>
+                <Button
+                  variant="outline"
+                  onClick={() => setIsScheduleOpen(false)}
+                  disabled={isSaving}
+                >
+                  Cancel
+                </Button>
+              </div>
+            </div>
+          </DialogContent>
+        </Dialog>
       </div>
     </DashboardLayout>
   );
