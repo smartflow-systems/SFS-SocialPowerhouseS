@@ -36,20 +36,9 @@ import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Input } from '@/components/ui/input';
 import { useToast } from '@/hooks/use-toast';
-import {
-  DndContext,
-  DragEndEvent,
-  DragOverlay,
-  DragStartEvent,
-  PointerSensor,
-  useSensor,
-  useSensors,
-  closestCenter,
-} from '@dnd-kit/core';
-import { CSS } from '@dnd-kit/utilities';
 
 type ViewMode = 'month' | 'week' | 'day';
-type PostStatus = 'draft' | 'scheduled' | 'published' | 'failed';
+type PostStatus = 'draft' | 'scheduled' | 'published' | 'failed' | 'pending_approval';
 
 interface Post {
   id: string;
@@ -65,6 +54,7 @@ const STATUS_COLORS: Record<PostStatus, string> = {
   scheduled: 'bg-blue-500/20 text-blue-400 border-blue-500/30',
   published: 'bg-green-500/20 text-green-400 border-green-500/30',
   failed: 'bg-red-500/20 text-red-400 border-red-500/30',
+  pending_approval: 'bg-yellow-500/20 text-yellow-400 border-yellow-500/30',
 };
 
 const PLATFORM_ICONS: Record<string, string> = {
@@ -88,15 +78,6 @@ export default function Calendar() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [activePost, setActivePost] = useState<Post | null>(null);
   const { toast } = useToast();
-
-  // Drag and drop sensors
-  const sensors = useSensors(
-    useSensor(PointerSensor, {
-      activationConstraint: {
-        distance: 8, // 8px movement required before drag starts
-      },
-    })
-  );
 
   // Fetch posts from API
   useEffect(() => {
@@ -405,7 +386,7 @@ export default function Calendar() {
   };
 
   // Drag and drop handlers
-  const handleDragStart = (event: DragStartEvent) => {
+  const handleDragStart = (event: { active: { id: string } }) => {
     const postId = event.active.id as string;
     const post = posts.find((p) => p.id === postId);
     if (post) {
@@ -413,7 +394,7 @@ export default function Calendar() {
     }
   };
 
-  const handleDragEnd = async (event: DragEndEvent) => {
+  const handleDragEnd = async (event: { active: { id: string }; over: { id: string } | null }) => {
     const { active, over } = event;
     setActivePost(null);
 
@@ -611,6 +592,7 @@ export default function Calendar() {
                   <SelectItem value="all">All Status</SelectItem>
                   <SelectItem value="draft">Draft</SelectItem>
                   <SelectItem value="scheduled">Scheduled</SelectItem>
+                  <SelectItem value="pending_approval">Pending Approval</SelectItem>
                   <SelectItem value="published">Published</SelectItem>
                   <SelectItem value="failed">Failed</SelectItem>
                 </SelectContent>
