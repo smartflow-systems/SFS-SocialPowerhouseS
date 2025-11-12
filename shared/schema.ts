@@ -100,7 +100,9 @@ export const teamMembers = pgTable("team_members", {
   invitedBy: varchar("invited_by").references(() => users.id),
   createdAt: timestamp("created_at").defaultNow(),
   updatedAt: timestamp("updated_at").defaultNow(),
-});
+}, (table) => ({
+  uniqueTeamUser: sql`UNIQUE(${table.teamId}, ${table.userId})`
+}));
 
 // User preferences/settings
 export const userPreferences = pgTable("user_preferences", {
