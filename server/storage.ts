@@ -1,4 +1,4 @@
-import { type User, type InsertUser, type Post } from "@shared/schema";
+import { type User, type InsertUser, type Post, type AITemplate } from "@shared/schema";
 import { randomUUID } from "crypto";
 import bcrypt from "bcrypt";
 
@@ -18,6 +18,15 @@ export interface InsertPost {
   hashtags?: string[];
 }
 
+export interface InsertAITemplate {
+  userId: string;
+  name: string;
+  prompt: string;
+  tone: string;
+  category?: string;
+  isPublic?: boolean;
+}
+
 export interface IStorage {
   getUser(id: string): Promise<User | undefined>;
   getUserByUsername(username: string): Promise<User | undefined>;
@@ -35,15 +44,25 @@ export interface IStorage {
   createPost(post: InsertPost): Promise<Post>;
   updatePost(id: string, updates: Partial<InsertPost>): Promise<Post | undefined>;
   deletePost(id: string): Promise<boolean>;
+
+  // Template methods
+  getTemplate(id: string): Promise<AITemplate | undefined>;
+  getUserTemplates(userId: string): Promise<AITemplate[]>;
+  createTemplate(template: InsertAITemplate): Promise<AITemplate>;
+  updateTemplate(id: string, updates: Partial<InsertAITemplate>): Promise<AITemplate | undefined>;
+  deleteTemplate(id: string): Promise<boolean>;
+  incrementTemplateUsage(id: string): Promise<void>;
 }
 
 export class MemStorage implements IStorage {
   private users: Map<string, User>;
   private posts: Map<string, Post>;
+  private templates: Map<string, AITemplate>;
 
   constructor() {
     this.users = new Map();
     this.posts = new Map();
+    this.templates = new Map();
   }
 
   async getUser(id: string): Promise<User | undefined> {
@@ -172,6 +191,68 @@ export class MemStorage implements IStorage {
 
   async deletePost(id: string): Promise<boolean> {
     return this.posts.delete(id);
+  }
+
+  // Template methods
+  async getTemplate(id: string): Promise<AITemplate | undefined> {
+    return this.templates.get(id);
+  }
+
+  async getUserTemplates(userId: string): Promise<AITemplate[]> {
+    return Array.from(this.templates.values())
+      .filter((template) => template.userId === userId || template.isPublic)
+      .sort((a, b) => b.usageCount! - a.usageCount!); // Most used first
+  }
+
+  async createTemplate(insertTemplate: InsertAITemplate): Promise<AITemplate> {
+    const id = randomUUID();
+    const now = new Date();
+    const template: AITemplate = {
+      id,
+      userId: insertTemplate.userId,
+      name: insertTemplate.name,
+      prompt: insertTemplate.prompt,
+      tone: insertTemplate.tone,
+      category: insertTemplate.category || null,
+      isPublic: insertTemplate.isPublic || false,
+      usageCount: 0,
+      createdAt: now,
+      updatedAt: now,
+    };
+    this.templates.set(id, template);
+    return template;
+  }
+
+  async updateTemplate(
+    id: string,
+    updates: Partial<InsertAITemplate>
+  ): Promise<AITemplate | undefined> {
+    const template = this.templates.get(id);
+    if (!template) {
+      return undefined;
+    }
+
+    const updatedTemplate: AITemplate = {
+      ...template,
+      ...updates,
+      updatedAt: new Date(),
+    };
+
+    this.templates.set(id, updatedTemplate);
+    return updatedTemplate;
+  }
+
+  async deleteTemplate(id: string): Promise<boolean> {
+    return this.templates.delete(id);
+  }
+
+  async incrementTemplateUsage(id: string): Promise<void> {
+    const template = this.templates.get(id);
+    if (template) {
+      template.usageCount = (template.usageCount || 0) + 1;
+      template.updatedAt = new Date();
+      this.templates.set(id, template);
+    }
   }
 }
 

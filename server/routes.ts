@@ -300,6 +300,195 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // AI Templates API Routes
+  // Get all templates for current user (including public ones)
+  app.get("/api/templates", requireAuth, async (req, res) => {
+    try {
+      const user = req.user as User;
+      const templates = await storage.getUserTemplates(user.id);
+      res.json({ templates });
+    } catch (error: any) {
+      console.error("Error fetching templates:", error);
+      res.status(500).json({
+        error: "Failed to fetch templates",
+        message: error.message || "An error occurred while fetching templates"
+      });
+    }
+  });
+
+  // Get single template by ID
+  app.get("/api/templates/:id", requireAuth, async (req, res) => {
+    try {
+      const user = req.user as User;
+      const { id } = req.params;
+
+      const template = await storage.getTemplate(id);
+      if (!template) {
+        return res.status(404).json({
+          error: "Template not found",
+          message: "The requested template does not exist"
+        });
+      }
+
+      // Verify template belongs to user or is public
+      if (template.userId !== user.id && !template.isPublic) {
+        return res.status(403).json({
+          error: "Access denied",
+          message: "You do not have permission to access this template"
+        });
+      }
+
+      res.json({ template });
+    } catch (error: any) {
+      console.error("Error fetching template:", error);
+      res.status(500).json({
+        error: "Failed to fetch template",
+        message: error.message || "An error occurred while fetching the template"
+      });
+    }
+  });
+
+  // Create new template
+  app.post("/api/templates", requireAuth, async (req, res) => {
+    try {
+      const user = req.user as User;
+      const { name, prompt, tone, category, isPublic } = req.body;
+
+      // Validation
+      if (!name || !prompt || !tone) {
+        return res.status(400).json({
+          error: "Missing required fields",
+          message: "Name, prompt, and tone are required"
+        });
+      }
+
+      const template = await storage.createTemplate({
+        userId: user.id,
+        name,
+        prompt,
+        tone,
+        category,
+        isPublic: isPublic || false,
+      });
+
+      res.status(201).json({
+        message: "Template created successfully",
+        template
+      });
+    } catch (error: any) {
+      console.error("Error creating template:", error);
+      res.status(500).json({
+        error: "Failed to create template",
+        message: error.message || "An error occurred while creating the template"
+      });
+    }
+  });
+
+  // Update template
+  app.put("/api/templates/:id", requireAuth, async (req, res) => {
+    try {
+      const user = req.user as User;
+      const { id } = req.params;
+      const updates = req.body;
+
+      // Get existing template
+      const existingTemplate = await storage.getTemplate(id);
+      if (!existingTemplate) {
+        return res.status(404).json({
+          error: "Template not found",
+          message: "The requested template does not exist"
+        });
+      }
+
+      // Verify template belongs to user
+      if (existingTemplate.userId !== user.id) {
+        return res.status(403).json({
+          error: "Access denied",
+          message: "You do not have permission to update this template"
+        });
+      }
+
+      const template = await storage.updateTemplate(id, updates);
+      res.json({
+        message: "Template updated successfully",
+        template
+      });
+    } catch (error: any) {
+      console.error("Error updating template:", error);
+      res.status(500).json({
+        error: "Failed to update template",
+        message: error.message || "An error occurred while updating the template"
+      });
+    }
+  });
+
+  // Delete template
+  app.delete("/api/templates/:id", requireAuth, async (req, res) => {
+    try {
+      const user = req.user as User;
+      const { id } = req.params;
+
+      // Get existing template
+      const existingTemplate = await storage.getTemplate(id);
+      if (!existingTemplate) {
+        return res.status(404).json({
+          error: "Template not found",
+          message: "The requested template does not exist"
+        });
+      }
+
+      // Verify template belongs to user
+      if (existingTemplate.userId !== user.id) {
+        return res.status(403).json({
+          error: "Access denied",
+          message: "You do not have permission to delete this template"
+        });
+      }
+
+      await storage.deleteTemplate(id);
+      res.json({ message: "Template deleted successfully" });
+    } catch (error: any) {
+      console.error("Error deleting template:", error);
+      res.status(500).json({
+        error: "Failed to delete template",
+        message: error.message || "An error occurred while deleting the template"
+      });
+    }
+  });
+
+  // Increment template usage count
+  app.post("/api/templates/:id/use", requireAuth, async (req, res) => {
+    try {
+      const user = req.user as User;
+      const { id } = req.params;
+
+      const template = await storage.getTemplate(id);
+      if (!template) {
+        return res.status(404).json({
+          error: "Template not found",
+          message: "The requested template does not exist"
+        });
+      }
+
+      // Verify template belongs to user or is public
+      if (template.userId !== user.id && !template.isPublic) {
+        return res.status(403).json({
+          error: "Access denied",
+          message: "You do not have permission to use this template"
+        });
+      }
+
+      await storage.incrementTemplateUsage(id);
+      res.json({ message: "Template usage recorded" });
+    } catch (error: any) {
+      console.error("Error recording template usage:", error);
+      res.status(500).json({
+        error: "Failed to record usage",
+        message: error.message || "An error occurred"
+      });
+    }
+  });
+
   // AI Content Generation Routes
   app.use("/api/ai", aiRouter);
 
