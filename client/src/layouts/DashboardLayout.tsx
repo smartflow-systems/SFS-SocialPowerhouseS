@@ -44,14 +44,13 @@ const settingsItems = [
   { icon: CreditCard, label: "Billing", path: "/billing" },
   { icon: HelpCircle, label: "Help", path: "/help" },
 ];
+import GitHubSidebar from '@/components/GitHubSidebar';
 
 interface DashboardLayoutProps {
   children: ReactNode;
 }
 
 export default function DashboardLayout({ children }: DashboardLayoutProps) {
-  const [location] = useLocation();
-
   return (
     <>
       {/* Circuit Background - Fixed to viewport */}
@@ -155,5 +154,19 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
       </SidebarInset>
     </SidebarProvider>
     </>
+    <div className="min-h-screen bg-background relative">
+      {/* Circuit Background */}
+      <div className="circuit-bg" />
+
+      {/* GitHub-style Sidebar */}
+      <GitHubSidebar />
+
+      {/* Main Content */}
+      <main className="relative z-10 pt-20 px-5">
+        <div className="max-w-7xl mx-auto">
+          {children}
+        </div>
+      </main>
+    </div>
   );
 }
