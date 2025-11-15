@@ -32,12 +32,15 @@ const contentItems = [
 ];
 
 const accountsItems = [
-  { icon: Globe, label: "Social Accounts", path: "/accounts" },
-  { icon: Zap, label: "Automation", path: "/automation" },
-  { icon: Bell, label: "Alerts", path: "/alerts" },
+  { icon: Globe, label: "Social Accounts", path: "/connections/social-accounts" },
+  { icon: Zap, label: "Automation", path: "/connections/automation" },
+  { icon: Bell, label: "Alerts", path: "/connections/alerts" },
 ];
 
 const settingsItems = [
+  { icon: Users, label: "Team", path: "/connections/team" },
+  { icon: Settings, label: "Settings", path: "/settings/preferences" },
+  { icon: CreditCard, label: "Billing", path: "/settings/billing" },
   { icon: Users, label: "Team", path: "/team" },
   { icon: CheckCircle, label: "Approvals", path: "/approvals" },
   { icon: Settings, label: "Settings", path: "/settings" },

@@ -17,15 +17,18 @@ import ContentLibrary from "@/pages/content-library/index";
 
 // Content Pages
 import PostsList from "@/pages/posts/index";
+import PostDetail from "@/pages/posts/detail";
 import CreatePost from "@/pages/posts/create";
 import ScheduledPosts from "@/pages/posts/scheduled";
 import Drafts from "@/pages/posts/drafts";
 import Templates from "@/pages/templates/index";
 
 // Connection Pages
-import SocialAccounts from "@/pages/connections/accounts";
+import SocialAccounts from "@/pages/connections/social-accounts";
 import TeamMembers from "@/pages/connections/team";
 import Integrations from "@/pages/connections/integrations";
+import Automation from "@/pages/connections/automation";
+import Alerts from "@/pages/connections/alerts";
 
 // Team & Approval Pages
 import AccountsPage from "@/pages/accounts/index";
@@ -38,6 +41,12 @@ import Billing from "@/pages/settings/billing";
 import Notifications from "@/pages/settings/notifications";
 import Preferences from "@/pages/settings/preferences";
 
+// Scheduler
+import Scheduler from "@/pages/scheduler/index";
+
+// Help
+import Help from "@/pages/help/index";
+
 function Router() {
   return (
     <Switch>
@@ -46,6 +55,8 @@ function Router() {
       {/* Authentication Routes */}
       <Route path="/auth/login" component={Login} />
       <Route path="/auth/register" component={Register} />
+      <Route path="/login" component={Login} />
+      <Route path="/register" component={Register} />
 
       {/* Dashboard Routes */}
       <Route path="/dashboard" component={Dashboard} />
@@ -64,12 +75,18 @@ function Router() {
       <Route path="/posts/create" component={CreatePost} />
       <Route path="/posts/scheduled" component={ScheduledPosts} />
       <Route path="/posts/drafts" component={Drafts} />
+      <Route path="/posts/:id" component={PostDetail} />
       <Route path="/templates" component={Templates} />
 
+      {/* Scheduler Route */}
+      <Route path="/scheduler" component={Scheduler} />
+
       {/* Connection Routes */}
-      <Route path="/connections/accounts" component={SocialAccounts} />
+      <Route path="/connections/social-accounts" component={SocialAccounts} />
       <Route path="/connections/team" component={TeamMembers} />
       <Route path="/connections/integrations" component={Integrations} />
+      <Route path="/connections/automation" component={Automation} />
+      <Route path="/connections/alerts" component={Alerts} />
 
       {/* Team & Collaboration Routes */}
       <Route path="/accounts" component={AccountsPage} />
@@ -81,6 +98,9 @@ function Router() {
       <Route path="/settings/billing" component={Billing} />
       <Route path="/settings/notifications" component={Notifications} />
       <Route path="/settings/preferences" component={Preferences} />
+
+      {/* Help Route */}
+      <Route path="/help" component={Help} />
 
       {/* Catch all - 404 */}
       <Route component={NotFound} />

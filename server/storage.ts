@@ -1,3 +1,4 @@
+import { type User, type InsertUser, type Post, type AITemplate, type TeamMember, type InsertTeamMember, type Team, type InsertTeam, type SocialAccount, type InsertSocialAccount, type UserPreferences, type InsertUserPreferences, users, posts, aiTemplates, teamMembers, teams, socialAccounts, userPreferences } from "@shared/schema";
 import {
   type User,
   type InsertUser,
@@ -85,6 +86,27 @@ export interface IStorage {
   deleteTemplate(id: string): Promise<boolean>;
   incrementTemplateUsage(id: string): Promise<void>;
 
+  // Team methods
+  getTeam(teamId: string): Promise<Team | undefined>;
+  getUserTeam(userId: string): Promise<Team | undefined>;
+  createTeam(team: Omit<InsertTeam, 'id'>): Promise<Team>;
+  getTeamMembers(teamId: string): Promise<TeamMember[]>;
+  getTeamMember(id: string): Promise<TeamMember | undefined>;
+  addTeamMember(member: Omit<InsertTeamMember, 'id'>): Promise<TeamMember>;
+  updateTeamMemberRole(id: string, role: string): Promise<TeamMember | undefined>;
+  removeTeamMember(id: string): Promise<boolean>;
+
+  // Social Account methods
+  getSocialAccounts(userId: string): Promise<SocialAccount[]>;
+  getSocialAccount(id: string): Promise<SocialAccount | undefined>;
+  createSocialAccount(account: Omit<InsertSocialAccount, 'id'>): Promise<SocialAccount>;
+  updateSocialAccount(id: string, updates: Partial<Omit<InsertSocialAccount, 'userId'>>): Promise<SocialAccount | undefined>;
+  deleteSocialAccount(id: string): Promise<boolean>;
+
+  // User Preferences methods
+  getUserPreferences(userId: string): Promise<UserPreferences | undefined>;
+  upsertUserPreferences(prefs: Omit<InsertUserPreferences, 'id'>): Promise<UserPreferences>;
+  updateProfile(userId: string, updates: { name?: string; email?: string; avatar?: string }): Promise<User | undefined>;
   // Comment methods
   getPostComments(postId: string): Promise<PostComment[]>;
   createComment(postId: string, userId: string, comment: string): Promise<PostComment>;
@@ -135,6 +157,10 @@ export class DbStorage implements IStorage {
       email: insertUser.email,
       password: hashedPassword,
     }).returning();
+    
+    // Auto-create default team for new user
+    await this.getOrCreateUserTeam(result[0].id, result[0].username);
+    
     return result[0];
   }
 
@@ -287,6 +313,91 @@ export class DbStorage implements IStorage {
       .where(eq(aiTemplates.id, id));
   }
 
+  // Team methods
+  private async getOrCreateUserTeam(userId: string, userName: string): Promise<Team> {
+    const existing = await this.db.select().from(teams).where(eq(teams.ownerId, userId)).limit(1);
+    if (existing[0]) return existing[0];
+
+    const team = await this.db.insert(teams).values({
+      ownerId: userId,
+      name: `${userName}'s Workspace`
+    }).returning();
+
+    await this.db.insert(teamMembers).values({
+      teamId: team[0].id,
+      userId: userId,
+      role: 'owner',
+      invitedBy: userId
+    });
+
+    return team[0];
+  }
+
+  async getTeam(teamId: string): Promise<Team | undefined> {
+    const result = await this.db.select().from(teams).where(eq(teams.id, teamId)).limit(1);
+    return result[0];
+  }
+
+  async getUserTeam(userId: string): Promise<Team | undefined> {
+    const result = await this.db.select().from(teams).where(eq(teams.ownerId, userId)).limit(1);
+    return result[0];
+  }
+
+  async createTeam(team: Omit<InsertTeam, 'id'>): Promise<Team> {
+    const result = await this.db.insert(teams).values(team).returning();
+    return result[0];
+  }
+
+  async getTeamMembers(teamId: string): Promise<TeamMember[]> {
+    const result = await this.db.select().from(teamMembers).where(eq(teamMembers.teamId, teamId));
+    return result;
+  }
+
+  async getTeamMember(id: string): Promise<TeamMember | undefined> {
+    const result = await this.db.select().from(teamMembers).where(eq(teamMembers.id, id)).limit(1);
+    return result[0];
+  }
+
+  async addTeamMember(member: Omit<InsertTeamMember, 'id'>): Promise<TeamMember> {
+    const result = await this.db.insert(teamMembers).values(member as any).returning();
+    return result[0];
+  }
+
+  async updateTeamMemberRole(id: string, role: string): Promise<TeamMember | undefined> {
+    const result = await this.db.update(teamMembers)
+      .set({ role, updatedAt: new Date() })
+      .where(eq(teamMembers.id, id))
+      .returning();
+    return result[0];
+  }
+
+  async removeTeamMember(id: string): Promise<boolean> {
+    const result = await this.db.delete(teamMembers).where(eq(teamMembers.id, id)).returning();
+    return result.length > 0;
+  }
+
+  // Social Account methods
+  async getSocialAccounts(userId: string): Promise<SocialAccount[]> {
+    const result = await this.db.select().from(socialAccounts).where(eq(socialAccounts.userId, userId));
+    return result;
+  }
+
+  async getSocialAccount(id: string): Promise<SocialAccount | undefined> {
+    const result = await this.db.select().from(socialAccounts).where(eq(socialAccounts.id, id)).limit(1);
+    return result[0];
+  }
+
+  async createSocialAccount(account: Omit<InsertSocialAccount, 'id'>): Promise<SocialAccount> {
+    const result = await this.db.insert(socialAccounts).values(account).returning();
+    return result[0];
+  }
+
+  async updateSocialAccount(id: string, updates: Partial<Omit<InsertSocialAccount, 'userId'>>): Promise<SocialAccount | undefined> {
+    const result = await this.db.update(socialAccounts)
+      .set({ ...updates, updatedAt: new Date() })
+      .where(eq(socialAccounts.id, id))
+      .returning();
+    return result[0];
   // Comment methods
   async getPostComments(postId: string): Promise<PostComment[]> {
     const result = await this.db.select()
@@ -404,6 +515,29 @@ export class DbStorage implements IStorage {
     return result.length > 0;
   }
 
+  // User Preferences methods
+  async getUserPreferences(userId: string): Promise<UserPreferences | undefined> {
+    const result = await this.db.select().from(userPreferences).where(eq(userPreferences.userId, userId)).limit(1);
+    return result[0];
+  }
+
+  async upsertUserPreferences(prefs: Omit<InsertUserPreferences, 'id'>): Promise<UserPreferences> {
+    const result = await this.db.insert(userPreferences)
+      .values(prefs)
+      .onConflictDoUpdate({
+        target: userPreferences.userId,
+        set: { ...prefs, updatedAt: new Date() }
+      })
+      .returning();
+    return result[0];
+  }
+
+  async updateProfile(userId: string, updates: { name?: string; email?: string; avatar?: string }): Promise<User | undefined> {
+    const result = await this.db.update(users)
+      .set({ ...updates, updatedAt: new Date() })
+      .where(eq(users.id, userId))
+      .returning();
+    return result[0];
   async getAccountsNeedingRefresh(): Promise<SocialAccount[]> {
     // Get accounts that expire within 24 hours
     const tomorrow = new Date();
@@ -446,6 +580,10 @@ export class MemStorage implements IStorage {
   private users: Map<string, User>;
   private posts: Map<string, Post>;
   private templates: Map<string, AITemplate>;
+  private teams: Map<string, Team>;
+  private teamMembers: Map<string, TeamMember>;
+  private socialAccounts: Map<string, SocialAccount>;
+  private userPrefs: Map<string, UserPreferences>;
   private comments: Map<string, PostComment>;
   private socialAccounts: Map<string, SocialAccount>;
 
@@ -453,6 +591,10 @@ export class MemStorage implements IStorage {
     this.users = new Map();
     this.posts = new Map();
     this.templates = new Map();
+    this.teams = new Map();
+    this.teamMembers = new Map();
+    this.socialAccounts = new Map();
+    this.userPrefs = new Map();
     this.comments = new Map();
     this.socialAccounts = new Map();
   }
@@ -490,6 +632,32 @@ export class MemStorage implements IStorage {
       updatedAt: now,
     };
     this.users.set(id, user);
+    
+    // Auto-create default team for new user
+    const teamId = randomUUID();
+    const team: Team = {
+      id: teamId,
+      ownerId: id,
+      name: `${user.username}'s Workspace`,
+      createdAt: now,
+      updatedAt: now
+    };
+    this.teams.set(teamId, team);
+    
+    // Add user as owner of the team
+    const memberId = randomUUID();
+    const member: TeamMember = {
+      id: memberId,
+      teamId: teamId,
+      userId: id,
+      role: 'owner',
+      permissions: null,
+      invitedBy: id,
+      createdAt: now,
+      updatedAt: now
+    };
+    this.teamMembers.set(memberId, member);
+    
     return user;
   }
 
@@ -666,6 +834,134 @@ export class MemStorage implements IStorage {
     }
   }
 
+  // Team methods
+  async getTeam(teamId: string): Promise<Team | undefined> {
+    return this.teams.get(teamId);
+  }
+
+  async getUserTeam(userId: string): Promise<Team | undefined> {
+    return Array.from(this.teams.values()).find(t => t.ownerId === userId);
+  }
+
+  async createTeam(team: Omit<InsertTeam, 'id'>): Promise<Team> {
+    const id = randomUUID();
+    const now = new Date();
+    const newTeam: Team = { ...team, id, createdAt: now, updatedAt: now };
+    this.teams.set(id, newTeam);
+    return newTeam;
+  }
+
+  async getTeamMembers(teamId: string): Promise<TeamMember[]> {
+    return Array.from(this.teamMembers.values()).filter(m => m.teamId === teamId);
+  }
+
+  async getTeamMember(id: string): Promise<TeamMember | undefined> {
+    return this.teamMembers.get(id);
+  }
+
+  async addTeamMember(member: Omit<InsertTeamMember, 'id'>): Promise<TeamMember> {
+    const id = randomUUID();
+    const now = new Date();
+    const newMember: TeamMember = {
+      ...member,
+      id,
+      permissions: (member.permissions as string[]) || null,
+      invitedBy: member.invitedBy || null,
+      createdAt: now,
+      updatedAt: now
+    };
+    this.teamMembers.set(id, newMember);
+    return newMember;
+  }
+
+  async updateTeamMemberRole(id: string, role: string): Promise<TeamMember | undefined> {
+    const member = this.teamMembers.get(id);
+    if (!member) return undefined;
+    member.role = role;
+    member.updatedAt = new Date();
+    this.teamMembers.set(id, member);
+    return member;
+  }
+
+  async removeTeamMember(id: string): Promise<boolean> {
+    return this.teamMembers.delete(id);
+  }
+
+  // Social Account methods
+  async getSocialAccounts(userId: string): Promise<SocialAccount[]> {
+    return Array.from(this.socialAccounts.values()).filter(a => a.userId === userId);
+  }
+
+  async getSocialAccount(id: string): Promise<SocialAccount | undefined> {
+    return this.socialAccounts.get(id);
+  }
+
+  async createSocialAccount(account: Omit<InsertSocialAccount, 'id'>): Promise<SocialAccount> {
+    const id = randomUUID();
+    const now = new Date();
+    const newAccount: SocialAccount = {
+      ...account,
+      id,
+      refreshToken: account.refreshToken || null,
+      expiresAt: account.expiresAt || null,
+      profileData: account.profileData || null,
+      isActive: account.isActive !== undefined ? account.isActive : true,
+      createdAt: now,
+      updatedAt: now
+    };
+    this.socialAccounts.set(id, newAccount);
+    return newAccount;
+  }
+
+  async updateSocialAccount(id: string, updates: Partial<Omit<InsertSocialAccount, 'userId'>>): Promise<SocialAccount | undefined> {
+    const account = this.socialAccounts.get(id);
+    if (!account) return undefined;
+    const updated = { ...account, ...updates, updatedAt: new Date() };
+    this.socialAccounts.set(id, updated);
+    return updated;
+  }
+
+  async deleteSocialAccount(id: string): Promise<boolean> {
+    return this.socialAccounts.delete(id);
+  }
+
+  // User Preferences methods
+  async getUserPreferences(userId: string): Promise<UserPreferences | undefined> {
+    return Array.from(this.userPrefs.values()).find(p => p.userId === userId);
+  }
+
+  async upsertUserPreferences(prefs: Omit<InsertUserPreferences, 'id'>): Promise<UserPreferences> {
+    const existing = Array.from(this.userPrefs.values()).find(p => p.userId === prefs.userId);
+    if (existing) {
+      const updated = { ...existing, ...prefs, updatedAt: new Date() };
+      this.userPrefs.set(existing.id, updated);
+      return updated;
+    } else {
+      const id = randomUUID();
+      const now = new Date();
+      const newPrefs: UserPreferences = {
+        ...prefs,
+        id,
+        theme: prefs.theme || null,
+        timezone: prefs.timezone || null,
+        emailNotifications: prefs.emailNotifications !== undefined ? prefs.emailNotifications : null,
+        pushNotifications: prefs.pushNotifications !== undefined ? prefs.pushNotifications : null,
+        weeklyReports: prefs.weeklyReports !== undefined ? prefs.weeklyReports : null,
+        notificationSettings: prefs.notificationSettings || null,
+        createdAt: now,
+        updatedAt: now
+      };
+      this.userPrefs.set(id, newPrefs);
+      return newPrefs;
+    }
+  }
+
+  async updateProfile(userId: string, updates: { name?: string; email?: string; avatar?: string }): Promise<User | undefined> {
+    const user = this.users.get(userId);
+    if (!user) return undefined;
+    const updated = { ...user, ...updates, updatedAt: new Date() };
+    this.users.set(userId, updated);
+    return updated;
   // Comment methods
   async getPostComments(postId: string): Promise<PostComment[]> {
     return Array.from(this.comments.values())
