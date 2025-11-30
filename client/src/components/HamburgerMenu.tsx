@@ -183,7 +183,7 @@ export default function HamburgerMenu({ className }: HamburgerMenuProps) {
         </div>
 
         {/* Menu Sections - Scrollable */}
-        <ScrollArea className="flex-1 overflow-hidden">
+        <div className="flex-1 overflow-y-auto custom-scrollbar">
           <div className="py-4">
             {menuSections.map((section, sectionIndex) => (
               <div key={section.title} className={sectionIndex > 0 ? "mt-6" : ""}>
@@ -223,7 +223,7 @@ export default function HamburgerMenu({ className }: HamburgerMenuProps) {
               </div>
             ))}
           </div>
-        </ScrollArea>
+        </div>
 
         {/* Footer */}
         <div className="absolute bottom-0 left-0 right-0 p-4 border-t border-sfs-gold/20 bg-gradient-to-r from-sfs-brown to-sfs-brown/80">
