@@ -15,6 +15,7 @@ import {
   FileText, Palette, Globe, Hash, Video, MessageSquare,
   TrendingUp, Shield, Layers, Bot, Gauge, BookOpen,
   Package, Code, Mail, Database, Link2, Share2, LogOut,
+  Activity,
   type LucideIcon
 } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -35,38 +36,49 @@ interface MenuSection {
 
 const menuSections: MenuSection[] = [
   {
-    title: "CORE",
+    title: "MAIN",
     items: [
       { id: "dashboard", label: "Dashboard", href: "/dashboard", icon: Home },
+      { id: "live-dashboard", label: "Live Dashboard", href: "/live-dashboard", icon: Activity },
+      { id: "social-inbox", label: "Social Inbox", href: "/social-inbox", icon: Mail },
       { id: "ai-studio", label: "AI Studio", href: "/ai-studio", icon: Sparkles },
-      { id: "calendar", label: "Content Calendar", href: "/calendar", icon: Calendar },
+      { id: "calendar", label: "Calendar", href: "/calendar", icon: Calendar },
       { id: "analytics", label: "Analytics", href: "/analytics", icon: BarChart3 },
+    ]
+  },
+  {
+    title: "CONTENT CREATION",
+    items: [
       { id: "posts", label: "Posts", href: "/posts", icon: FileText },
+      { id: "ai-generator", label: "AI Generator", href: "/ai/generator", icon: Bot },
+      { id: "visual-creator", label: "Visual Creator", href: "/ai-visual-creator", icon: Palette },
+      { id: "templates", label: "Templates", href: "/templates", icon: FileText },
+      { id: "content-library", label: "Content Library", href: "/content-library", icon: Palette },
+    ]
+  },
+  {
+    title: "PUBLISHING",
+    items: [
       { id: "scheduler", label: "Scheduler", href: "/scheduler", icon: Calendar },
     ]
   },
   {
-    title: "CONTENT & TOOLS",
+    title: "SOCIAL ACCOUNTS",
     items: [
-      { id: "ai-generator", label: "AI Generator", href: "/ai/generator", icon: Bot },
-      { id: "templates", label: "Templates", href: "/templates", icon: FileText },
-      { id: "content-library", label: "Content Library", href: "/content-library", icon: Palette },
-      { id: "ai-visual", label: "Visual Creator", href: "/ai-visual-creator", icon: Palette },
+      { id: "social-accounts", label: "Social Accounts", href: "/connections/social-accounts", icon: Globe },
     ]
   },
   {
     title: "ENGAGEMENT",
     items: [
-      { id: "social-inbox", label: "Social Inbox", href: "/social-inbox", icon: Mail },
       { id: "social-listening", label: "Social Listening", href: "/social-listening", icon: Gauge },
-      { id: "live-dashboard", label: "Live Dashboard", href: "/live-dashboard", icon: TrendingUp },
-      { id: "competitor", label: "Competitor Intel", href: "/competitor-intelligence", icon: Target },
+      { id: "competitor", label: "Competitor Intelligence", href: "/competitor-intelligence", icon: Target },
+      { id: "growth-tools", label: "Growth Tools", href: "/growth-tools", icon: Trophy },
     ]
   },
   {
     title: "CONNECTIONS",
     items: [
-      { id: "social-accounts", label: "Social Accounts", href: "/connections/social-accounts", icon: Globe },
       { id: "integrations", label: "Integrations", href: "/connections/integrations", icon: Layers },
       { id: "automation", label: "Automation", href: "/connections/automation", icon: Zap },
       { id: "alerts", label: "Alerts", href: "/connections/alerts", icon: Bell },
@@ -76,15 +88,14 @@ const menuSections: MenuSection[] = [
     title: "TEAM & WORKSPACE",
     items: [
       { id: "team", label: "Team Members", href: "/team", icon: Users },
-      { id: "team-members", label: "Team Collaboration", href: "/connections/team", icon: Users },
+      { id: "team-collab", label: "Team Collaboration", href: "/connections/team", icon: Users },
       { id: "approvals", label: "Approval Flows", href: "/approvals", icon: FileText },
       { id: "accounts", label: "Accounts", href: "/accounts", icon: Shield },
     ]
   },
   {
-    title: "GROWTH",
+    title: "AUTOMATION",
     items: [
-      { id: "growth-tools", label: "Growth Tools", href: "/growth-tools", icon: Trophy },
       { id: "automation-rules", label: "Automation Rules", href: "/automation", icon: Zap },
     ]
   },
