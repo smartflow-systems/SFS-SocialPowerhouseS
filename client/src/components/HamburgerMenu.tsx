@@ -155,7 +155,7 @@ export default function HamburgerMenu({ className }: HamburgerMenuProps) {
       {/* Slide-in Sidebar */}
       <div
         className={cn(
-          "fixed top-0 left-0 h-full w-56 z-50",
+          "fixed top-0 left-0 h-full w-56 z-50 flex flex-col",
           "bg-sfs-brown/95 backdrop-blur-xl border-r border-sfs-gold/30",
           "transform transition-transform duration-300 ease-in-out",
           "shadow-2xl shadow-sfs-gold/10",
@@ -163,7 +163,7 @@ export default function HamburgerMenu({ className }: HamburgerMenuProps) {
         )}
       >
         {/* Header */}
-        <div className="flex items-center justify-between p-4 border-b border-sfs-gold/20 bg-gradient-to-r from-sfs-brown to-sfs-brown/80">
+        <div className="flex-shrink-0 flex items-center justify-between p-4 border-b border-sfs-gold/20 bg-gradient-to-r from-sfs-brown to-sfs-brown/80">
           <div className="flex items-center gap-3">
             <div className="w-10 h-10 bg-gradient-to-br from-sfs-gold to-sfs-gold-hover rounded-lg flex items-center justify-center shadow-lg shadow-sfs-gold/30">
               <Sparkles className="w-6 h-6 text-sfs-black" />
@@ -182,8 +182,8 @@ export default function HamburgerMenu({ className }: HamburgerMenuProps) {
           </button>
         </div>
 
-        {/* Menu Sections */}
-        <ScrollArea className="h-[calc(100vh-140px)]">
+        {/* Menu Sections - Scrollable */}
+        <ScrollArea className="flex-1 overflow-hidden">
           <div className="py-4">
             {menuSections.map((section, sectionIndex) => (
               <div key={section.title} className={sectionIndex > 0 ? "mt-6" : ""}>

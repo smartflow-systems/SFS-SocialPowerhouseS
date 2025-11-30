@@ -151,37 +151,38 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
         </div>
       </aside>
 
+      {/* Top Header */}
+      <header className="fixed top-0 right-0 left-0 z-30 flex items-center justify-between h-16 px-4 bg-sfs-black/80 backdrop-blur-md border-b border-sfs-gold/20 md:left-auto"
+        style={{ width: sidebarOpen ? 'calc(100% - 16rem)' : 'calc(100% - 4rem)', left: sidebarOpen ? '16rem' : '4rem' }}>
+        <div className="flex items-center gap-4">
+          <Button
+            variant="ghost"
+            size="icon"
+            onClick={() => setMobileOpen(true)}
+            className="md:hidden text-sfs-beige/70 hover:text-sfs-gold"
+            data-testid="button-mobile-menu"
+          >
+            <Menu className="w-5 h-5" />
+          </Button>
+          <h1 className="text-lg font-semibold text-sfs-gold">SFS Social PowerHouse</h1>
+        </div>
+        <div className="flex items-center gap-2">
+          <Button variant="ghost" size="icon" className="text-sfs-beige/70 hover:text-sfs-gold">
+            <Bell className="w-5 h-5" />
+          </Button>
+          <Link href="/settings/profile">
+            <Button variant="ghost" size="icon" className="text-sfs-beige/70 hover:text-sfs-gold">
+              <Settings className="w-5 h-5" />
+            </Button>
+          </Link>
+        </div>
+      </header>
+
       {/* Main Content */}
       <div className={cn(
-        "transition-all duration-300",
+        "pt-16 transition-all duration-300",
         sidebarOpen ? "md:ml-64" : "md:ml-16"
       )}>
-        {/* Top Header */}
-        <header className="sticky top-0 z-30 flex items-center justify-between h-16 px-4 bg-sfs-black/80 backdrop-blur-md border-b border-sfs-gold/20">
-          <div className="flex items-center gap-4">
-            <Button
-              variant="ghost"
-              size="icon"
-              onClick={() => setMobileOpen(true)}
-              className="md:hidden text-sfs-beige/70 hover:text-sfs-gold"
-              data-testid="button-mobile-menu"
-            >
-              <Menu className="w-5 h-5" />
-            </Button>
-            <h1 className="text-lg font-semibold text-sfs-gold">SFS Social PowerHouse</h1>
-          </div>
-          <div className="flex items-center gap-2">
-            <Button variant="ghost" size="icon" className="text-sfs-beige/70 hover:text-sfs-gold">
-              <Bell className="w-5 h-5" />
-            </Button>
-            <Link href="/settings/profile">
-              <Button variant="ghost" size="icon" className="text-sfs-beige/70 hover:text-sfs-gold">
-                <Settings className="w-5 h-5" />
-              </Button>
-            </Link>
-          </div>
-        </header>
-
         {/* Page Content */}
         <main className="p-4 md:p-6">
           {children}
